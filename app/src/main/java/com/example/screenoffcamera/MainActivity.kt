@@ -245,7 +245,6 @@ class MainActivity : AppCompatActivity() {
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(result: ImageCapture.OutputFileResults) {
                     isCapturing = false
-                    shutterSound.play(MediaActionSound.SHUTTER_CLICK)
                     vibrate(40)
                     flashStatus("保存しました")
                 }
@@ -286,14 +285,11 @@ class MainActivity : AppCompatActivity() {
             recording = pending.start(ContextCompat.getMainExecutor(this)) { ev ->
                 when (ev) {
                     is VideoRecordEvent.Start -> {
-                        playStartTone()   // 低い「どぅ」
                         recIndicator.visibility = View.VISIBLE
-                        setBrightness(0.6f)   // 赤いREC表示が見えるように明るく
                         startRecBlink()
                         vibrate(60)
                     }
                     is VideoRecordEvent.Finalize -> {
-                        shutterSound.play(MediaActionSound.STOP_VIDEO_RECORDING)
                         stopRecBlink()
                         recIndicator.visibility = View.GONE
                         setBrightness(0.01f)  // 録画終了で再び暗く
