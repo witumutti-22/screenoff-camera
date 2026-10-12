@@ -4,27 +4,55 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <!-- プレビュー。省電力モード中は黒いカバーで隠す -->
+    <!-- プレビュー。写真モード中は黒いカバーで隠す／動画モードでは表示 -->
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- 省電力時に全面を覆う黒カバー（OLEDでは黒＝ほぼ消灯） -->
+    <!-- 写真モード（省電力）時に全面を覆う黒カバー -->
     <View
         android:id="@+id/blackCover"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#000000" />
 
-    <!-- 撮影時に一瞬だけ表示する小さな表示 -->
+    <!-- 録画中を示す赤い表示（常時表示） -->
+    <LinearLayout
+        android:id="@+id/recIndicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="24dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="#88000000"
+        android:padding="8dp"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginEnd="8dp"
+            android:background="#FF0000" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="● REC 録画中"
+            android:textColor="#FF3B30"
+            android:textStyle="bold"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- モード・状態の表示 -->
     <TextView
         android:id="@+id/statusText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="48dp"
-        android:textColor="#555555"
+        android:textColor="#AAAAAA"
         android:textSize="14sp"
-        android:text="音量+ 撮影 / 音量− カメラ切替" />
+        android:text="音量+ 撮影 / 長押し モード切替 / 音量− カメラ切替" />
 </FrameLayout>
