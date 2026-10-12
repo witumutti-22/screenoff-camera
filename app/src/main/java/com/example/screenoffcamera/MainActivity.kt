@@ -3,6 +3,9 @@ package com.example.screenoffcamera
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import android.media.MediaActionSound
 import android.os.Build
 import android.os.Bundle
@@ -284,7 +287,7 @@ class MainActivity : AppCompatActivity() {
             recording = pending.start(ContextCompat.getMainExecutor(this)) { ev ->
                 when (ev) {
                     is VideoRecordEvent.Start -> {
-                        shutterSound.play(MediaActionSound.START_VIDEO_RECORDING)
+                        playStartTone()   // 低い「どぅ」
                         recIndicator.visibility = View.VISIBLE
                         vibrate(60)
                     }
@@ -303,6 +306,49 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "録画開始失敗: ${e.message}", Toast.LENGTH_LONG).show()
             recording = null
         }
+    }
+
+    /** 低くて短い「どぅ」という開始音を生成して鳴らす（220→150Hzへわずかに下げる） */
+    private fun playStartTone() {
+        Thread {
+            try {
+                val sampleRate = 44100
+                val durationMs = 200
+                val n = sampleRate * durationMs / 1000
+                val buf = ShortArray(n)
+                val fStart = 220.0
+                val fEnd = 150.0
+                var phase = 0.0
+                for (i in 0 until n) {
+                    val p = i.toDouble() / n
+                    val freq = fStart + (fEnd - fStart) * p          // 下降する音程
+                    phase += 2.0 * Math.PI * freq / sampleRate
+                    val attack = Math.min(1.0, i / (sampleRate * 0.008))
+                    val decay = Math.exp(-3.5 * p)
+                    val env = attack * decay
+                    buf[i] = (Math.sin(phase) * env * Short.MAX_VALUE * 0.85).toInt().toShort()
+                }
+                @Suppress("DEPRECATION")
+                val track = AudioTrack(
+                    AudioManager.STREAM_MUSIC, sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    n * 2, AudioTrack.MODE_STATIC
+                )
+                track.write(buf, 0, n)
+                track.setNotificationMarkerPosition(n)
+                track.setPlaybackPositionUpdateListener(
+                    object : AudioTrack.OnPlaybackPositionUpdateListener {
+                        override fun onMarkerReached(t: AudioTrack?) {
+                            try { t?.release() } catch (_: Exception) {}
+                        }
+                        override fun onPeriodicNotification(t: AudioTrack?) {}
+                    })
+                track.play()
+            } catch (_: Exception) {
+                // 生成に失敗したらシステム音にフォールバック
+                shutterSound.play(MediaActionSound.START_VIDEO_RECORDING)
+            }
+        }.start()
     }
 
     // ---- 補助 ----
