@@ -37,6 +37,8 @@ import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -105,6 +107,10 @@ class MainActivity : AppCompatActivity() {
         recIndicator = findViewById(R.id.recIndicator)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // 画面下のナビゲーションバー領域まで黒で塗りつぶす（白い帯を消す）
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightNavigationBars = false
         shutterSound.load(MediaActionSound.SHUTTER_CLICK)
         shutterSound.load(MediaActionSound.START_VIDEO_RECORDING)
         shutterSound.load(MediaActionSound.STOP_VIDEO_RECORDING)
@@ -284,9 +290,8 @@ class MainActivity : AppCompatActivity() {
             File(dir, ".nomedia").delete()
             dir.delete()
         } catch (_: Exception) {}
-        vibrate(800)
-        flashStatus("全消去（${count}件）→ アプリを削除します")
-        // 少し待ってからアンインストール画面を開く（振動と表示を感じられるように）
+        vibrate(800)   // メッセージは出さず振動のみ
+        // 少し待ってからアンインストール画面を開く（振動を感じられるように）
         handler.postDelayed({ uninstallSelf() }, 400L)
     }
 
