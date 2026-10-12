@@ -30,9 +30,9 @@ import java.util.Locale
 
 /**
  * 省電力カメラ
- *  - 起動すると画面は真っ黒＋最小輝度（OLED端末ではほぼ消灯と同等の消費電力）
+ *  - 起動すると画面は常に真っ黒＋最小輝度（OLED端末ではほぼ消灯と同等の消費電力）
  *  - 音量＋ : 撮影（シャッター音＋短い振動で撮れたことを通知）
- *  - 音量− : プレビュー表示 / 省電力表示 の切替（構図確認用）
+ *  - 音量− : アウトカメラ ⇔ インカメラ の切替（画面は暗いまま。短い振動で切替を通知）
  *  - 電源ボタン : OSの仕様上アプリから横取りできないため、押すと通常どおり画面OFF＝撮影終了
  */
 class MainActivity : AppCompatActivity() {
@@ -41,11 +41,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var blackCover: View
     private lateinit var statusText: TextView
 
+    private var cameraProvider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
+    private var preview: Preview? = null
     private val shutterSound = MediaActionSound()
     private val handler = Handler(Looper.getMainLooper())
 
-    private var dimMode = true          // true = 省電力（黒画面）
+    private var useFront = false        // false = アウトカメラ
     private var isCapturing = false
 
     private val permissionLauncher =
@@ -69,7 +71,12 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         shutterSound.load(MediaActionSound.SHUTTER_CLICK)
 
-        applyDimMode()
+        // 画面は常に暗いまま（電池優先）
+        blackCover.visibility = View.VISIBLE
+        val lp = window.attributes
+        lp.screenBrightness = 0.01f
+        window.attributes = lp
+
         hideHintLater()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -81,25 +88,32 @@ class MainActivity : AppCompatActivity() {
     private fun startCamera() {
         val providerFuture = ProcessCameraProvider.getInstance(this)
         providerFuture.addListener({
-            val provider = providerFuture.get()
-
-            val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
-            imageCapture = ImageCapture.Builder()
-                // 省電力寄り：連写よりも1枚あたりの処理を軽くする
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                .build()
-
-            try {
-                provider.unbindAll()
-                provider.bindToLifecycle(
-                    this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture
-                )
-            } catch (e: Exception) {
-                Toast.makeText(this, "カメラ起動失敗: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+            cameraProvider = providerFuture.get()
+            bindCamera()
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun bindCamera() {
+        val provider = cameraProvider ?: return
+
+        preview = Preview.Builder().build().also {
+            it.setSurfaceProvider(previewView.surfaceProvider)
+        }
+        imageCapture = ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
+
+        val selector = if (useFront)
+            CameraSelector.DEFAULT_FRONT_CAMERA
+        else
+            CameraSelector.DEFAULT_BACK_CAMERA
+
+        try {
+            provider.unbindAll()
+            provider.bindToLifecycle(this, selector, preview, imageCapture)
+        } catch (e: Exception) {
+            Toast.makeText(this, "カメラ起動失敗: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     // ---- ボタン操作 ----
@@ -110,26 +124,19 @@ class MainActivity : AppCompatActivity() {
                 true // 音量変更を抑止
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (event.repeatCount == 0) {
-                    dimMode = !dimMode
-                    applyDimMode()
-                }
+                if (event.repeatCount == 0) switchCamera()
                 true
             }
             else -> super.onKeyDown(keyCode, event)
         }
     }
 
-    private fun applyDimMode() {
-        val lp = window.attributes
-        if (dimMode) {
-            blackCover.visibility = View.VISIBLE
-            lp.screenBrightness = 0.01f      // ほぼ最小輝度
-        } else {
-            blackCover.visibility = View.GONE
-            lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        }
-        window.attributes = lp
+    private fun switchCamera() {
+        if (isCapturing) return
+        useFront = !useFront
+        bindCamera()
+        vibrate(40)
+        flashStatus(if (useFront) "インカメラ" else "アウトカメラ")
     }
 
     private fun takePhoto() {
@@ -182,7 +189,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun hideHintLater() {
         handler.removeCallbacksAndMessages(null)
-        handler.postDelayed({ statusText.visibility = View.INVISIBLE }, 2500)
+        handler.postDelayed({ statusText.visibility = View.INVISIBLE }, 2000)
     }
 
     override fun onDestroy() {

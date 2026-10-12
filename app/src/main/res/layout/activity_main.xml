@@ -26,5 +26,5 @@
         android:layout_marginBottom="48dp"
         android:textColor="#555555"
         android:textSize="14sp"
-        android:text="音量+ 撮影 / 音量− プレビュー切替" />
+        android:text="音量+ 撮影 / 音量− カメラ切替" />
 </FrameLayout>
