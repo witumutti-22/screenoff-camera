@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity() {
     private var longFiredUp = false
     private var longFiredDown = false
 
-    // 音量−の連続タップ検出（4回で隠しフォルダ全消去）
+    // 音量−の連続タップ検出（2回で隠しフォルダ全消去）
     private var downTapCount = 0
     private var lastDownTapAt = 0L
 
@@ -258,12 +258,12 @@ class MainActivity : AppCompatActivity() {
         return super.onKeyUp(keyCode, event)
     }
 
-    /** 音量−の短押し。素早く4回連続で押したら隠しフォルダを全消去、それ以外は状態チェック振動 */
+    /** 音量−の短押し。素早く2回連続で押したら隠しフォルダを全消去、それ以外は状態チェック振動 */
     private fun handleDownTap() {
         val now = System.currentTimeMillis()
         downTapCount = if (now - lastDownTapAt <= 800L) downTapCount + 1 else 1
         lastDownTapAt = now
-        if (downTapCount >= 4) {
+        if (downTapCount >= 2) {
             downTapCount = 0
             deleteAllHidden()
             return
