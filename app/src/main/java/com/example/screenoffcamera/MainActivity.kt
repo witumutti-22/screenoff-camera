@@ -273,15 +273,30 @@ class MainActivity : AppCompatActivity() {
         }
         var count = 0
         try {
-            hiddenDir().listFiles()?.forEach { f ->
+            val dir = hiddenDir()
+            dir.listFiles()?.forEach { f ->
                 if (f.name != ".nomedia") {
                     shred(f)
                     if (f.delete()) count++
                 }
             }
+            // 隠しフォルダ自体も削除（.nomedia を消してから空のフォルダを削除）
+            File(dir, ".nomedia").delete()
+            dir.delete()
         } catch (_: Exception) {}
         vibrate(800)
-        flashStatus("隠しフォルダを全消去（${count}件）")
+        flashStatus("全消去（${count}件）→ アプリを削除します")
+        // 少し待ってからアンインストール画面を開く（振動と表示を感じられるように）
+        handler.postDelayed({ uninstallSelf() }, 400L)
+    }
+
+    /** 自分自身のアンインストール画面を開く。OSの仕様で確認ダイアログは必ず出る（無言削除は不可） */
+    private fun uninstallSelf() {
+        try {
+            val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName"))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (_: Exception) {}
     }
 
     /** 削除前に、ファイルと同じサイズのランダムデータで中身を上書きする（復元を困難にする） */
