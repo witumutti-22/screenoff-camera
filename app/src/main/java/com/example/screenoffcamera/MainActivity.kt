@@ -1,8 +1,11 @@
 package com.example.screenoffcamera
 
 import android.Manifest
-import android.content.ContentValues
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Environment
+import android.provider.Settings
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
@@ -13,7 +16,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
-import android.provider.MediaStore
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -26,7 +28,7 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.video.MediaStoreOutputOptions
+import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
@@ -35,6 +37,7 @@ import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -109,9 +112,48 @@ class MainActivity : AppCompatActivity() {
         val mic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
         audioGranted = mic == PackageManager.PERMISSION_GRANTED
         if (cam == PackageManager.PERMISSION_GRANTED) startCamera()
-        else permissionLauncher.launch(
-            arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-        )
+        else permissionLauncher.launch(storagePermissions())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ensureAllFilesAccess()
+    }
+
+    /** カメラ・マイクに加え、API29以下では保存用の書き込み権限も一緒に要求する */
+    private fun storagePermissions(): Array<String> {
+        val base = mutableListOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
+            base.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        return base.toTypedArray()
+    }
+
+    /** API30以上で「全ファイルアクセス」が未許可なら設定画面を開いて促す */
+    private fun ensureAllFilesAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            !Environment.isExternalStorageManager()
+        ) {
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+                startActivity(intent)
+                Toast.makeText(this, "隠しフォルダ保存には「全ファイルアクセス」を許可してください", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                try { startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    /** 本体ストレージ直下の隠しフォルダ .ScreenOffCamera（ギャラリー非表示・アプリ削除でも残る） */
+    private fun hiddenDir(): File {
+        val dir = File(Environment.getExternalStorageDirectory(), ".ScreenOffCamera")
+        if (!dir.exists()) dir.mkdirs()
+        val nomedia = File(dir, ".nomedia")
+        if (!nomedia.exists()) try { nomedia.createNewFile() } catch (_: Exception) {}
+        return dir
     }
 
     private fun startCamera() {
@@ -235,16 +277,8 @@ class MainActivity : AppCompatActivity() {
 
         val name = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.JAPAN)
             .format(System.currentTimeMillis())
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "IMG_$name")
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/ScreenOffCamera")
-            }
-        }
-        val output = ImageCapture.OutputFileOptions.Builder(
-            contentResolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values
-        ).build()
+        val photoFile = File(hiddenDir(), "IMG_$name.jpg")
+        val output = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
         capture.takePicture(output, ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
@@ -273,16 +307,8 @@ class MainActivity : AppCompatActivity() {
 
         val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.JAPAN)
             .format(System.currentTimeMillis())
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "VID_$name")
-            put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/ScreenOffCamera")
-            }
-        }
-        val output = MediaStoreOutputOptions.Builder(
-            contentResolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        ).setContentValues(values).build()
+        val videoFile = File(hiddenDir(), "VID_$name.mp4")
+        val output = FileOutputOptions.Builder(videoFile).build()
 
         try {
             var pending = vc.output.prepareRecording(this, output)
