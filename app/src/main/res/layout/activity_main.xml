@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- プレビュー。省電力モード中は黒いカバーで隠す -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 省電力時に全面を覆う黒カバー（OLEDでは黒＝ほぼ消灯） -->
+    <View
+        android:id="@+id/blackCover"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000" />
+
+    <!-- 撮影時に一瞬だけ表示する小さな表示 -->
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="48dp"
+        android:textColor="#555555"
+        android:textSize="14sp"
+        android:text="音量+ 撮影 / 音量− プレビュー切替" />
+</FrameLayout>
