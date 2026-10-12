@@ -184,6 +184,11 @@ class MainActivity : AppCompatActivity() {
             toggleMode()
             return true
         }
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            longFiredDown = true
+            switchCamera()   // 下長押し: イン/アウト切替
+            return true
+        }
         return super.onKeyLongPress(keyCode, event)
     }
 
@@ -194,7 +199,7 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (!longFiredDown) switchCamera()
+                if (!longFiredDown) statusVibrate()   // 下一瞬押し: 状態チェック振動
                 return true
             }
         }
@@ -349,6 +354,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---- 補助 ----
+    /** 今の状態を振動で知らせる: 写真モード=短1回 / 動画待機=短2回 / 録画中=長1回 */
+    private fun statusVibrate() {
+        @Suppress("DEPRECATION")
+        val v = getSystemService(VIBRATOR_SERVICE) as Vibrator
+        val effect = when {
+            recording != null -> VibrationEffect.createOneShot(600, VibrationEffect.DEFAULT_AMPLITUDE)
+            videoMode -> VibrationEffect.createWaveform(longArrayOf(0, 60, 150, 60), -1)
+            else -> VibrationEffect.createOneShot(60, VibrationEffect.DEFAULT_AMPLITUDE)
+        }
+        v.vibrate(effect)
+    }
+
     private fun vibrate(ms: Long) {
         @Suppress("DEPRECATION")
         val v = getSystemService(VIBRATOR_SERVICE) as Vibrator
