@@ -285,8 +285,6 @@ class MainActivity : AppCompatActivity() {
             recording = pending.start(ContextCompat.getMainExecutor(this)) { ev ->
                 when (ev) {
                     is VideoRecordEvent.Start -> {
-                        recIndicator.visibility = View.VISIBLE
-                        startRecBlink()
                         vibrate(60)
                     }
                     is VideoRecordEvent.Finalize -> {
