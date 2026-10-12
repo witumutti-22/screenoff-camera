@@ -81,9 +81,9 @@ class MainActivity : AppCompatActivity() {
     private var longFiredUp = false
     private var longFiredDown = false
 
-    // 音量＋の連続タップ検出（4回で隠しフォルダ全消去）
-    private var upTapCount = 0
-    private var lastUpTapAt = 0L
+    // 音量−の連続タップ検出（4回で隠しフォルダ全消去）
+    private var downTapCount = 0
+    private var lastDownTapAt = 0L
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -241,28 +241,28 @@ class MainActivity : AppCompatActivity() {
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
-                if (!longFiredUp) handleUpTap()
+                if (!longFiredUp) primaryAction()
                 return true
             }
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                if (!longFiredDown) statusVibrate()   // 下一瞬押し: 状態チェック振動
+                if (!longFiredDown) handleDownTap()
                 return true
             }
         }
         return super.onKeyUp(keyCode, event)
     }
 
-    /** 音量＋の短押し。素早く4回連続で押したら隠しフォルダを全消去、それ以外は通常の撮影／録画 */
-    private fun handleUpTap() {
+    /** 音量−の短押し。素早く4回連続で押したら隠しフォルダを全消去、それ以外は状態チェック振動 */
+    private fun handleDownTap() {
         val now = System.currentTimeMillis()
-        upTapCount = if (now - lastUpTapAt <= 800L) upTapCount + 1 else 1
-        lastUpTapAt = now
-        if (upTapCount >= 4) {
-            upTapCount = 0
+        downTapCount = if (now - lastDownTapAt <= 800L) downTapCount + 1 else 1
+        lastDownTapAt = now
+        if (downTapCount >= 4) {
+            downTapCount = 0
             deleteAllHidden()
             return
         }
-        primaryAction()
+        statusVibrate()
     }
 
     /** 隠しフォルダ .ScreenOffCamera の中身（写真・動画）を全削除する。取り消し不可 */
