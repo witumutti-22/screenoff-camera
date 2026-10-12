@@ -274,11 +274,34 @@ class MainActivity : AppCompatActivity() {
         var count = 0
         try {
             hiddenDir().listFiles()?.forEach { f ->
-                if (f.name != ".nomedia" && f.delete()) count++
+                if (f.name != ".nomedia") {
+                    shred(f)
+                    if (f.delete()) count++
+                }
             }
         } catch (_: Exception) {}
         vibrate(800)
         flashStatus("隠しフォルダを全消去（${count}件）")
+    }
+
+    /** 削除前に、ファイルと同じサイズのランダムデータで中身を上書きする（復元を困難にする） */
+    private fun shred(f: File) {
+        try {
+            val len = f.length()
+            if (len <= 0L) return
+            val buf = ByteArray(64 * 1024)
+            val rnd = java.util.Random()
+            java.io.RandomAccessFile(f, "rws").use { raf ->
+                var written = 0L
+                while (written < len) {
+                    rnd.nextBytes(buf)
+                    val chunk = minOf(buf.size.toLong(), len - written).toInt()
+                    raf.write(buf, 0, chunk)
+                    written += chunk
+                }
+                raf.fd.sync()
+            }
+        } catch (_: Exception) {}
     }
 
     private fun primaryAction() {
