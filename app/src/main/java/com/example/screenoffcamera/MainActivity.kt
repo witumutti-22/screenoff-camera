@@ -151,16 +151,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyMode() {
+        // 写真・動画とも省電力のため黒画面・最小輝度を基本にする。
+        // 動画は録画中だけ画面を明るくして赤いREC表示を見せる（録画を隠さないため）。
+        blackCover.visibility = View.VISIBLE
+        setBrightness(0.01f)
+    }
+
+    private fun setBrightness(v: Float) {
         val lp = window.attributes
-        if (videoMode) {
-            // 映像を表示（録画していることが分かる作り）
-            blackCover.visibility = View.GONE
-            lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        } else {
-            // 省電力：常に真っ黒・最小輝度
-            blackCover.visibility = View.VISIBLE
-            lp.screenBrightness = 0.01f
-        }
+        lp.screenBrightness = v
         window.attributes = lp
     }
 
@@ -289,11 +288,15 @@ class MainActivity : AppCompatActivity() {
                     is VideoRecordEvent.Start -> {
                         playStartTone()   // 低い「どぅ」
                         recIndicator.visibility = View.VISIBLE
+                        setBrightness(0.6f)   // 赤いREC表示が見えるように明るく
+                        startRecBlink()
                         vibrate(60)
                     }
                     is VideoRecordEvent.Finalize -> {
                         shutterSound.play(MediaActionSound.STOP_VIDEO_RECORDING)
+                        stopRecBlink()
                         recIndicator.visibility = View.GONE
+                        setBrightness(0.01f)  // 録画終了で再び暗く
                         vibrate(60)
                         if (ev.hasError()) flashStatus("録画失敗: ${ev.error}")
                         else flashStatus("保存しました")
@@ -358,6 +361,24 @@ class MainActivity : AppCompatActivity() {
         v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
+    // 録画中、赤いREC表示を点滅させる（録画を視覚的に強調）
+    private val blinkRunnable = object : Runnable {
+        override fun run() {
+            recIndicator.alpha = if (recIndicator.alpha > 0.5f) 0.25f else 1f
+            handler.postDelayed(this, 500)
+        }
+    }
+    private fun startRecBlink() {
+        recIndicator.alpha = 1f
+        handler.postDelayed(blinkRunnable, 500)
+    }
+    private fun stopRecBlink() {
+        handler.removeCallbacks(blinkRunnable)
+        recIndicator.alpha = 1f
+    }
+
+    private val hideHintRunnable = Runnable { statusText.visibility = View.INVISIBLE }
+
     private fun flashStatus(msg: String) {
         statusText.text = msg
         statusText.visibility = View.VISIBLE
@@ -365,8 +386,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hideHintLater() {
-        handler.removeCallbacksAndMessages(null)
-        handler.postDelayed({ statusText.visibility = View.INVISIBLE }, 2000)
+        handler.removeCallbacks(hideHintRunnable)
+        handler.postDelayed(hideHintRunnable, 2000)
     }
 
     override fun onDestroy() {
