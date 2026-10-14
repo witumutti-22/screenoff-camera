@@ -75,8 +75,8 @@ class MainActivity : AppCompatActivity() {
     private val shutterSound = MediaActionSound()
     private val handler = Handler(Looper.getMainLooper())
 
-    private var useFront = false
-    private var videoMode = false
+    private var useFront = true    // 起動直後はインカメラ
+    private var videoMode = true    // 起動直後は動画モード
     private var isCapturing = false
     private var audioGranted = false
 
